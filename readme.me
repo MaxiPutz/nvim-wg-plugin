@@ -1,4 +1,5 @@
 # nvim-wg-plugin
+		vim.key.set("n", "<leader>e", api.NvimTreeToggle)
 
 A lightweight Neovim plugin to manage **WireGuard servers directly inside Neovim**.  
 Initialize a server, generate keys, create peers, update `wg0.conf`, and automatically copy client configurations to your clipboard — all without leaving your editor.
@@ -26,3 +27,33 @@ Automatically creates a fully working WireGuard server config in the current dir
   # Forward von wg0 -> eth0 erlauben + Antworten zurück + NAT
   PostUp   = iptables -A FORWARD -i %i -o eth0 -j ACCEPT; iptables -A FORWARD -i eth0 -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
   PostDown = iptables -D FORWARD -i %i -o eth0 -j ACCEPT; iptables -D FORWARD -i eth0 -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+  - Updates the server’s `wg0.conf` with a new `[Peer]`
+- Copies the generated client config to clipboard
+
+### 🖥 Clipboard support
+- **OSC52** (terminal clipboard, ideal for SSH)
+- **+ register** (default system clipboard)
+
+### 🔢 Auto-incrementing peers
+Detects next available peer number and next free IP.
+
+### 🧩 Zero external dependencies (besides WireGuard tools)
+
+---
+
+## 📦 Installation (lazy.nvim)
+
+```lua
+{
+"MaxiPutz/nvim-wg-plugin",
+dependencies = {
+  "ojroques/nvim-osc52", -- optional for OSC52 clipboard copying
+},
+config = function()
+  require("nvim-wg-plugin").setup({
+    osc52 = false, -- default: copy to + register
+  })
+end,
+}
+
