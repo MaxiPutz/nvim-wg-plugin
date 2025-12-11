@@ -10,19 +10,19 @@ Perfect for sysadmins working over SSH, developers building VPN setups, or anyon
 ## ✨ Features
 
 ### 🆕 Server Initialization — `:WGInitServer`
-Creates a fully working WireGuard server config:
 
-- `privatekey`
-- `publickey`
-- `wg0.conf` containing:
-  - IP: `10.0.0.1/24`
-  - Port: `51820`
-  - NAT + forwarding rules
-  - Secure defaults for immediate use
+Automatically creates a fully working WireGuard server config in the current directory:
 
-### 🆕 Add New Peer — `:WGAddPeer`
-Automatically:
+- `privatekey` – server private key  
+- `publickey`  – server public key  
+- `wg0.conf`   – default WireGuard configuration with:
 
-- Detects next available client ID (`client1`, `client2`, ...)
-- Generates keypairs
-- Creates:
+  ```ini
+  [Interface]
+  Address = 10.0.0.1/24
+  ListenPort = 51820
+  PrivateKey = <privatekey>
+
+  # Forward von wg0 -> eth0 erlauben + Antworten zurück + NAT
+  PostUp   = iptables -A FORWARD -i %i -o eth0 -j ACCEPT; iptables -A FORWARD -i eth0 -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+  PostDown = iptables -D FORWARD -i %i -o eth0 -j ACCEPT; iptables -D FORWARD -i eth0 -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
