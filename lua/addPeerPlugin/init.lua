@@ -1,4 +1,4 @@
-------------------------------------------------------------
+-------------------------------------------------------------
 -- MODULE TABLE
 ------------------------------------------------------------
 local M = {}
@@ -6,7 +6,6 @@ local M = {}
 ------------------------------------------------------------
 -- HELPERS
 ------------------------------------------------------------
-
 local function file_exists(path)
 	local stat = vim.loop.fs_stat(path)
 	return stat ~= nil
@@ -130,19 +129,57 @@ local function copy_to_clipboard(text)
 end
 
 ------------------------------------------------------------
--- MAIN FUNCTION
+-- SERVER INITIALIZATION
+------------------------------------------------------------
+function M.init_server()
+	if file_exists("wg0.conf") then
+		vim.notify("wg0.conf already exists — aborting", vim.log.levels.ERROR)
+		return
+	end
+
+	-- Generate server keys
+	local priv, pub, err = generate_keypair()
+	if err then
+		vim.notify("Failed to generate server key: " .. err, vim.log.levels.ERROR)
+		return
+	end
+
+	write_file("privatekey", priv .. "\n")
+	write_file("publickey", pub .. "\n")
+
+	local server_conf = string.format(
+		[[
+[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = %s
+
+# Forward von wg0 -> eth0 erlauben + Antworten zurück + NAT
+PostUp   = iptables -A FORWARD -i %%i -o eth0 -j ACCEPT; iptables -A FORWARD -i eth0 -o %%i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %%i -o eth0 -j ACCEPT; iptables -D FORWARD -i eth0 -o %%i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+]],
+		priv
+	)
+
+	write_file("wg0.conf", server_conf, "w")
+
+	vim.notify("WireGuard server initialized successfully!", vim.log.levels.INFO)
+end
+
+------------------------------------------------------------
+-- ADD PEER
 ------------------------------------------------------------
 function M.add_peer()
 	local cwd = vim.loop.cwd()
 	vim.notify("nvim-add-peer: working directory: " .. cwd, vim.log.levels.INFO)
 
 	if not file_exists("wg0.conf") then
-		vim.notify("nvim-add-peer: wg0.conf not found", vim.log.levels.ERROR)
+		vim.notify("wg0.conf not found — run :WGInitServer first", vim.log.levels.ERROR)
 		return
 	end
 
 	if not file_exists("publickey") then
-		vim.notify("nvim-add-peer: ./publickey not found", vim.log.levels.ERROR)
+		vim.notify("./publickey (server public key) not found", vim.log.levels.ERROR)
 		return
 	end
 
@@ -151,7 +188,7 @@ function M.add_peer()
 
 	local base_ip, max_octet = detect_ip_base_and_max(wg_conf)
 	if not base_ip then
-		vim.notify("nvim-add-peer: cannot detect base IP", vim.log.levels.ERROR)
+		vim.notify("Cannot detect base IP from wg0.conf", vim.log.levels.ERROR)
 		return
 	end
 
@@ -161,9 +198,9 @@ function M.add_peer()
 
 	vim.fn.mkdir(client_dir, "p")
 
-	local priv, pub, kerr = generate_keypair()
-	if kerr then
-		vim.notify("Key generation failed: " .. kerr, vim.log.levels.ERROR)
+	local priv, pub, err = generate_keypair()
+	if err then
+		vim.notify("Failed to generate peer key: " .. err, vim.log.levels.ERROR)
 		return
 	end
 
@@ -210,7 +247,7 @@ PersistentKeepalive = 25
 
 	copy_to_clipboard(client_conf)
 
-	vim.notify(string.format("nvim-add-peer: %s created with IP %s", client_name, client_ip), vim.log.levels.INFO)
+	vim.notify(string.format("Peer %s created with IP %s", client_name, client_ip), vim.log.levels.INFO)
 end
 
 ------------------------------------------------------------
@@ -220,8 +257,13 @@ function M.setup(opts)
 	opts = opts or {}
 	use_osc52 = opts.osc52 or false
 
-	vim.api.nvim_create_user_command("NvimAddPeer", function()
+	-- Custom commands
+	vim.api.nvim_create_user_command("WGAddPeer", function()
 		M.add_peer()
+	end, {})
+
+	vim.api.nvim_create_user_command("WGInitServer", function()
+		M.init_server()
 	end, {})
 
 	vim.notify("nvim-add-peer loaded (OSC52 = " .. tostring(use_osc52) .. ")", vim.log.levels.INFO)

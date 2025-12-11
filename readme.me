@@ -1,39 +1,28 @@
-# nvim-add-peer
+# nvim-wg-plugin
 
-**nvim-add-peer** is a Neovim plugin that automatically creates new WireGuard peers directly from your editor.  
-It generates client keys, updates your server’s `wg0.conf`, creates the client configuration folder, and copies the final client config to your clipboard (OSC52 or system `+` register).
+A lightweight Neovim plugin to manage **WireGuard servers directly inside Neovim**.  
+Initialize a server, generate keys, create peers, update `wg0.conf`, and automatically copy client configurations to your clipboard — all without leaving your editor.
 
-Perfect for managing WireGuard servers while staying inside Neovim.
+Perfect for sysadmins working over SSH, developers building VPN setups, or anyone maintaining WireGuard nodes.
 
 ---
 
 ## ✨ Features
 
-- 🔧 Automatically detects the next available peer number (`client1`, `client2`, …)
-- 🔐 Generates WireGuard keypairs (`wg genkey`, `wg pubkey`)
-- 📁 Creates a client directory and writes `privatekey`, `publickey`, and `wg0.conf`
-- 🛠 Updates your server’s `wg0.conf` by appending the new peer block
-- 📋 Copies the generated client configuration to your clipboard  
-  - Uses **OSC52** (terminal clipboard) if enabled  
-  - Falls back to Neovim’s `+` register otherwise
-- 🚫 Safe defaults — clipboard copying is off unless explicitly enabled
-- ⚡ Fast, clean, no external dependencies (optional OSC52 plugin)
+### 🆕 Server Initialization — `:WGInitServer`
+Creates a fully working WireGuard server config:
 
----
+- `privatekey`
+- `publickey`
+- `wg0.conf` containing:
+  - IP: `10.0.0.1/24`
+  - Port: `51820`
+  - NAT + forwarding rules
+  - Secure defaults for immediate use
 
-## 📦 Installation
+### 🆕 Add New Peer — `:WGAddPeer`
+Automatically:
 
-With **lazy.nvim**:
-
-```lua
-{
-  "addPeerPlugin",
-  dir = "~/workspace/addPeerPlugin", -- or your local path
-  dependencies = { "ojroques/nvim-osc52" }, -- optional
-  config = function()
-    require("addPeerPlugin").setup({
-      osc52 = false, -- default: use + register
-    })
-  end,
-}
-
+- Detects next available client ID (`client1`, `client2`, ...)
+- Generates keypairs
+- Creates:
